@@ -1,11 +1,13 @@
 package xtypes_test
 
 import (
+	"fmt"
 	"go/ast"
 	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
+	"reflect"
 	"testing"
 
 	"github.com/goplus/xtypes"
@@ -101,6 +103,50 @@ func TestTypes(t *testing.T) {
 			t.Errorf("%s: ToType error %v", test.src, err)
 		}
 		if got := rt.String(); got != test.str {
+			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
+		}
+	}
+}
+
+var namedTest = []testEntry{
+	two(`package p
+	type T struct {
+		X int
+		Y int
+	}
+	`, `{X:0 Y:0}`),
+	two(`package p
+	type Point struct {
+		X int
+		Y int
+	}
+	type T struct {
+		pt Point
+	}
+	`, `{pt:{X:0 Y:0}}`),
+	// two(`package p
+	// type T struct {
+	// 	P *T
+	// }
+	// `, ``),
+}
+
+func TestNamed(t *testing.T) {
+	var tests []testEntry
+	tests = append(tests, namedTest...)
+
+	for _, test := range tests {
+		pkg, err := makePkg(test.src)
+		if err != nil {
+			t.Errorf("%s: %s", test.src, err)
+			continue
+		}
+		typ := pkg.Scope().Lookup("T").Type()
+		rt, err := xtypes.ToType(typ, nil)
+		if err != nil {
+			t.Errorf("%s: ToType error %v", test.src, err)
+		}
+		if got := fmt.Sprintf("%+v", reflect.New(rt).Elem().Interface()); got != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}
 	}
