@@ -51,9 +51,50 @@ var basicTypes = [...]reflect.Type{
 	types.UnsafePointer: reflect.TypeOf(unsafe.Pointer(nil)),
 }
 
-// GoTypeFinder interface
-type GoTypeFinder interface {
-	FindGoType(pkgPath string, namedType string) (reflect.Type, bool)
+// Context interface
+type Context interface {
+	FindType(pkgPath string, namedType string) (reflect.Type, bool)
+	UpdateType(typ reflect.Type)
+}
+
+type context struct {
+	rtype map[reflect.Type]reflect.Type
+}
+
+func NewContext() Context {
+	return &context{make(map[reflect.Type]reflect.Type)}
+}
+
+func (t *context) FindType(pkgPath string, namedType string) (reflect.Type, bool) {
+	for k, v := range t.rtype {
+		if k.PkgPath() == pkgPath && k.Name() == namedType {
+			if v != nil {
+				return v, true
+			}
+			return k, true
+		}
+	}
+	typ := reflectx.NamedTypeOf(pkgPath, namedType, tyEmptyInterface)
+	t.rtype[typ] = nil
+	return typ, false
+}
+
+func (t *context) UpdateType(typ reflect.Type) {
+	rmap := make(map[reflect.Type]reflect.Type)
+	for k, v := range t.rtype {
+		if k.PkgPath() == typ.PkgPath() && k.Name() == typ.Name() {
+			t.rtype[k] = typ
+			v = typ
+		}
+		if v != nil {
+			rmap[k] = v
+		}
+	}
+	for _, v := range t.rtype {
+		if v != nil {
+			reflectx.UpdateField(v, rmap)
+		}
+	}
 }
 
 var (
@@ -67,7 +108,7 @@ var (
 	ErrUnknownArrayLen = errors.New("unknown array length")
 )
 
-func ToTypeList(tuple *types.Tuple, ctx GoTypeFinder) (list []reflect.Type, err error) {
+func ToTypeList(tuple *types.Tuple, ctx Context) (list []reflect.Type, err error) {
 	for i := 0; i < tuple.Len(); i++ {
 		t, err := ToType(tuple.At(i).Type(), ctx)
 		if err != nil {
@@ -78,7 +119,7 @@ func ToTypeList(tuple *types.Tuple, ctx GoTypeFinder) (list []reflect.Type, err 
 	return
 }
 
-func ToType(typ types.Type, ctx GoTypeFinder) (reflect.Type, error) {
+func ToType(typ types.Type, ctx Context) (reflect.Type, error) {
 	switch t := typ.(type) {
 	case *types.Basic:
 		if kind := t.Kind(); kind >= types.Bool && kind <= types.UnsafePointer {
@@ -156,7 +197,7 @@ func toChanDir(d types.ChanDir) reflect.ChanDir {
 }
 
 // toStructType converts a types.Struct to reflect.Type.
-func toStructType(t *types.Struct, ctx GoTypeFinder) (typ reflect.Type, err error) {
+func toStructType(t *types.Struct, ctx Context) (typ reflect.Type, err error) {
 	n := t.NumFields()
 	flds := make([]reflect.StructField, n)
 	for i := 0; i < n; i++ {
@@ -168,7 +209,7 @@ func toStructType(t *types.Struct, ctx GoTypeFinder) (typ reflect.Type, err erro
 	return reflectx.StructOf(flds), nil
 }
 
-func toStructField(v *types.Var, tag string, ctx GoTypeFinder) (fld reflect.StructField, err error) {
+func toStructField(v *types.Var, tag string, ctx Context) (fld reflect.StructField, err error) {
 	name := v.Name()
 	typ, err := ToType(v.Type(), ctx)
 	if err != nil {
@@ -187,22 +228,23 @@ func toStructField(v *types.Var, tag string, ctx GoTypeFinder) (fld reflect.Stru
 	return
 }
 
-func toNamedType(t *types.Named, ctx GoTypeFinder) (reflect.Type, error) {
+func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	name := t.Obj()
 	if ctx != nil {
-		if t, ok := ctx.FindGoType(name.Pkg().Path(), name.Name()); ok {
+		if t, ok := ctx.FindType(name.Pkg().Path(), name.Name()); ok {
 			return t, nil
 		}
 	}
-	// So, this type is defined in Go+, so in fact it is same as the underlying type.
 	typ, err := ToType(t.Underlying(), ctx)
 	if err != nil {
 		return nil, fmt.Errorf("named type `%s` - %w", name.Name(), err)
 	}
-	return reflectx.NamedTypeOf(name.Pkg().Path(), name.Name(), typ), nil
+	typ = reflectx.NamedTypeOf(name.Pkg().Path(), name.Name(), typ)
+	ctx.UpdateType(typ)
+	return typ, nil
 }
 
-func toInterfaceType(t *types.Interface, ctx GoTypeFinder) (reflect.Type, error) {
+func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 	n := t.NumMethods()
 	ms := make([]reflect.Method, n)
 	for i := 0; i < n; i++ {

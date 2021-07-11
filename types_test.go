@@ -114,7 +114,7 @@ var namedTest = []testEntry{
 		X int
 		Y int
 	}
-	`, `{X:0 Y:0}`),
+	`, `p.T{X:0, Y:0}`),
 	two(`package p
 	type Point struct {
 		X int
@@ -123,12 +123,26 @@ var namedTest = []testEntry{
 	type T struct {
 		pt Point
 	}
-	`, `{pt:{X:0 Y:0}}`),
-	// two(`package p
-	// type T struct {
-	// 	P *T
-	// }
-	// `, ``),
+	`, `p.T{pt:p.Point{X:0, Y:0}}`),
+	two(`package p
+	type T struct {
+		P map[string]T
+	}
+	`, `p.T{P:map[string]p.T(nil)}`),
+	two(`package p
+	type N struct {
+		*T
+	}
+	type T struct {
+		*N
+	}
+	`, `p.T{N:(*p.N)(nil)}`),
+	two(`package p
+	type T struct {
+		*T
+	}`, `p.T{T:(*p.T)(nil)}`),
+	two(`package p
+	type T *T`, `(p.T)(nil)`),
 }
 
 func TestNamed(t *testing.T) {
@@ -141,12 +155,13 @@ func TestNamed(t *testing.T) {
 			t.Errorf("%s: %s", test.src, err)
 			continue
 		}
+		ctx := xtypes.NewContext()
 		typ := pkg.Scope().Lookup("T").Type()
-		rt, err := xtypes.ToType(typ, nil)
+		rt, err := xtypes.ToType(typ, ctx)
 		if err != nil {
 			t.Errorf("%s: ToType error %v", test.src, err)
 		}
-		if got := fmt.Sprintf("%+v", reflect.New(rt).Elem().Interface()); got != test.str {
+		if got := fmt.Sprintf("%+#v", reflect.New(rt).Elem().Interface()); got != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}
 	}
