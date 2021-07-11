@@ -83,6 +83,7 @@ var typesTest = []testEntry{
 		Stringer
 		Add(a, b int) int
 	}`, `interface { Add(int, int) int; String() string }`),
+	two(`error`, `interface { Error() string }`),
 }
 
 func TestTypes(t *testing.T) {

@@ -254,9 +254,11 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 			return nil, fmt.Errorf("unknown interface method `%v` `%s` type - %w", t, fn.Name(), err)
 		}
 		ms[i] = reflect.Method{
-			Name:    fn.Name(),
-			PkgPath: fn.Pkg().Path(),
-			Type:    mtyp,
+			Name: fn.Name(),
+			Type: mtyp,
+		}
+		if pkg := fn.Pkg(); pkg != nil {
+			ms[i].PkgPath = pkg.Path()
 		}
 	}
 	return reflectx.InterfaceOf(nil, ms), nil
