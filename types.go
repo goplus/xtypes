@@ -230,8 +230,13 @@ func toStructField(v *types.Var, tag string, ctx Context) (fld reflect.StructFie
 
 func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	name := t.Obj()
+	if name.Pkg() == nil {
+		return ToType(t.Underlying(), ctx)
+	}
+	pkgPath := name.Pkg().Path()
+	namedType := name.Name()
 	if ctx != nil {
-		if t, ok := ctx.FindType(name.Pkg().Path(), name.Name()); ok {
+		if t, ok := ctx.FindType(pkgPath, namedType); ok {
 			return t, nil
 		}
 	}
@@ -239,7 +244,7 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	if err != nil {
 		return nil, fmt.Errorf("named type `%s` - %w", name.Name(), err)
 	}
-	typ = reflectx.NamedTypeOf(name.Pkg().Path(), name.Name(), typ)
+	typ = reflectx.NamedTypeOf(pkgPath, namedType, typ)
 	ctx.UpdateType(typ)
 	return typ, nil
 }

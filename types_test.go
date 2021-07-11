@@ -111,6 +111,12 @@ func TestTypes(t *testing.T) {
 
 var namedTest = []testEntry{
 	two(`package main
+	type T int`, `0`),
+	two(`package main
+	type T byte`, `0x0`),
+	two(`package main
+	type T func(a **byte, b *int, c string)`, `(main.T)(nil)`),
+	two(`package main
 	type T struct {
 		X int
 		Y int
@@ -154,6 +160,10 @@ var namedTest = []testEntry{
 	type T *T`, `(main.T)(nil)`),
 	two(`package main
 	type T [2]*T`, `main.T{(*main.T)(nil), (*main.T)(nil)}`),
+	two(`package main
+	import "errors"
+	var T = errors.New("err")
+	`, `<nil>`),
 }
 
 func TestNamed(t *testing.T) {
