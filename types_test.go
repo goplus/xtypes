@@ -84,6 +84,7 @@ var typesTest = []testEntry{
 		Add(a, b int) int
 	}`, `interface { Add(int, int) int; String() string }`),
 	two(`error`, `interface { Error() string }`),
+	two(`func(path *byte, argv **byte, envp **byte) error`, `func(*uint8, **uint8, **uint8) error`),
 }
 
 func TestTypes(t *testing.T) {

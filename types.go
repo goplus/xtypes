@@ -99,6 +99,7 @@ func (t *context) UpdateType(typ reflect.Type) {
 
 var (
 	tyEmptyInterface = reflect.TypeOf((*interface{})(nil)).Elem()
+	tyErrorInterface = reflect.TypeOf((*error)(nil)).Elem()
 )
 
 var (
@@ -231,6 +232,9 @@ func toStructField(v *types.Var, tag string, ctx Context) (fld reflect.StructFie
 func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	name := t.Obj()
 	if name.Pkg() == nil {
+		if name.Name() == "error" {
+			return tyErrorInterface, nil
+		}
 		return ToType(t.Underlying(), ctx)
 	}
 	pkgPath := name.Pkg().Path()
