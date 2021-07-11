@@ -109,13 +109,21 @@ func TestTypes(t *testing.T) {
 }
 
 var namedTest = []testEntry{
-	two(`package p
+	two(`package main
 	type T struct {
 		X int
 		Y int
 	}
-	`, `p.T{X:0, Y:0}`),
-	two(`package p
+	`, `main.T{X:0, Y:0}`),
+	two(`package main
+	type T struct {
+		_ int
+		_ int
+		x int
+		y int
+	}
+	`, `main.T{_:0, _:0, x:0, y:0}`),
+	two(`package main
 	type Point struct {
 		X int
 		Y int
@@ -123,26 +131,28 @@ var namedTest = []testEntry{
 	type T struct {
 		pt Point
 	}
-	`, `p.T{pt:p.Point{X:0, Y:0}}`),
-	two(`package p
+	`, `main.T{pt:main.Point{X:0, Y:0}}`),
+	two(`package main
 	type T struct {
 		P map[string]T
 	}
-	`, `p.T{P:map[string]p.T(nil)}`),
-	two(`package p
+	`, `main.T{P:map[string]main.T(nil)}`),
+	two(`package main
 	type N struct {
 		*T
 	}
 	type T struct {
 		*N
 	}
-	`, `p.T{N:(*p.N)(nil)}`),
-	two(`package p
+	`, `main.T{N:(*main.N)(nil)}`),
+	two(`package main
 	type T struct {
 		*T
-	}`, `p.T{T:(*p.T)(nil)}`),
-	two(`package p
-	type T *T`, `(p.T)(nil)`),
+	}`, `main.T{T:(*main.T)(nil)}`),
+	two(`package main
+	type T *T`, `(main.T)(nil)`),
+	two(`package main
+	type T [2]*T`, `main.T{(*main.T)(nil), (*main.T)(nil)}`),
 }
 
 func TestNamed(t *testing.T) {
