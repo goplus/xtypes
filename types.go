@@ -51,52 +51,6 @@ var basicTypes = [...]reflect.Type{
 	types.UnsafePointer: reflect.TypeOf(unsafe.Pointer(nil)),
 }
 
-// Context interface
-type Context interface {
-	FindType(pkgPath string, namedType string) (reflect.Type, bool)
-	UpdateType(typ reflect.Type)
-}
-
-type context struct {
-	rtype map[reflect.Type]reflect.Type
-}
-
-func NewContext() Context {
-	return &context{make(map[reflect.Type]reflect.Type)}
-}
-
-func (t *context) FindType(pkgPath string, namedType string) (reflect.Type, bool) {
-	for k, v := range t.rtype {
-		if k.PkgPath() == pkgPath && k.Name() == namedType {
-			if v != nil {
-				return v, true
-			}
-			return k, true
-		}
-	}
-	typ := reflectx.NamedTypeOf(pkgPath, namedType, tyEmptyInterface)
-	t.rtype[typ] = nil
-	return typ, false
-}
-
-func (t *context) UpdateType(typ reflect.Type) {
-	rmap := make(map[reflect.Type]reflect.Type)
-	for k, v := range t.rtype {
-		if k.PkgPath() == typ.PkgPath() && k.Name() == typ.Name() {
-			t.rtype[k] = typ
-			v = typ
-		}
-		if v != nil {
-			rmap[k] = v
-		}
-	}
-	for _, v := range t.rtype {
-		if v != nil {
-			reflectx.UpdateField(v, rmap)
-		}
-	}
-}
-
 var (
 	tyEmptyInterface = reflect.TypeOf((*interface{})(nil)).Elem()
 	tyErrorInterface = reflect.TypeOf((*error)(nil)).Elem()
@@ -250,27 +204,38 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	}
 	typ = reflectx.NamedTypeOf(pkgPath, namedType, typ)
 	numMethods := t.NumMethods()
+	var fnUpdate func() error
 	if numMethods > 0 {
-		var ms []reflectx.Method
 		var mcount, pcount int
 		for i := 0; i < numMethods; i++ {
 			fn := t.Method(i)
 			sig := fn.Type().(*types.Signature)
-			mtyp, err := ToType(sig, ctx)
-			if err != nil {
-				return nil, fmt.Errorf("named methods `%s.%s` - %w", name.Name(), fn.Name(), err)
-			}
 			pointer := isPointer(sig.Recv().Type())
 			if !pointer {
 				mcount++
 			}
 			pcount++
-			ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, nil))
 		}
 		typ = reflectx.NewMethodSet(typ, mcount, pcount)
-		reflectx.SetMethodSet(typ, ms)
+		fnUpdate = func() error {
+			var ms []reflectx.Method
+			for i := 0; i < numMethods; i++ {
+				fn := t.Method(i)
+				sig := fn.Type().(*types.Signature)
+				mtyp, err := ToType(sig, ctx)
+				if err != nil {
+					return fmt.Errorf("named methods `%s.%s` - %w", name.Name(), fn.Name(), err)
+				}
+				pointer := isPointer(sig.Recv().Type())
+				ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, nil))
+			}
+			return reflectx.SetMethodSet(typ, ms)
+		}
+		if err := fnUpdate(); err != nil {
+			return nil, err
+		}
 	}
-	ctx.UpdateType(typ)
+	ctx.UpdateType(typ, fnUpdate)
 	return typ, nil
 }
 
@@ -297,4 +262,67 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 		}
 	}
 	return reflectx.InterfaceOf(nil, ms), nil
+}
+
+// Context interface
+type Context interface {
+	FindType(pkgPath string, namedType string) (reflect.Type, bool)
+	UpdateType(typ reflect.Type, fnUpdateMethods func() error)
+	UpdateAllMethods() error
+}
+
+type context struct {
+	rtype map[reflect.Type]reflect.Type   // pre_type => type
+	ntype map[reflect.Type](func() error) // type => update_methods
+}
+
+func NewContext() Context {
+	return &context{
+		rtype: make(map[reflect.Type]reflect.Type),
+		ntype: make(map[reflect.Type](func() error)),
+	}
+}
+
+func (t *context) FindType(pkgPath string, namedType string) (reflect.Type, bool) {
+	for k, v := range t.rtype {
+		if k.PkgPath() == pkgPath && k.Name() == namedType {
+			if v != nil {
+				return v, true
+			}
+			return k, true
+		}
+	}
+	typ := reflectx.NamedTypeOf(pkgPath, namedType, tyEmptyInterface)
+	t.rtype[typ] = nil
+	return typ, false
+}
+
+func (t *context) UpdateType(typ reflect.Type, fnUpdateMethods func() error) {
+	rmap := make(map[reflect.Type]reflect.Type)
+	for k, v := range t.rtype {
+		if k.PkgPath() == typ.PkgPath() && k.Name() == typ.Name() {
+			t.rtype[k] = typ
+			v = typ
+		}
+		if v != nil {
+			rmap[k] = v
+		}
+	}
+	for _, v := range t.rtype {
+		if v != nil {
+			reflectx.UpdateField(v, rmap)
+		}
+	}
+	if fnUpdateMethods != nil {
+		t.ntype[typ] = fnUpdateMethods
+	}
+}
+
+func (t *context) UpdateAllMethods() error {
+	for _, fn := range t.ntype {
+		if err := fn(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
