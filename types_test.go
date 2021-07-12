@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/goplus/xtypes"
@@ -203,7 +204,81 @@ var methodTest = []testEntry{
 	func (t *T) Set(x int, y int) {
 		t.X, t.Y = x, y
 	}
-	`, `main.T{X:0, Y:0}`),
+	`, `String func(main.T) string
+Set func(*main.T, int, int)`),
+	two(`package main
+	import "fmt"
+	type N struct {
+		size int
+	}
+	func (b N) Size() int {
+		return b.size
+	}
+	func (b *N) SetSize(n int) {
+		b.size = n
+	}
+	type T struct {
+		N
+		X int
+		Y int
+	}
+	func (t T) String() string {
+		return fmt.Sprintf("(%v,%v)",t.X,t.Y)
+	}
+	func (t *T) Set(x int, y int) {
+		t.X, t.Y = x, y
+	}
+	`, `Size func(main.T) int
+String func(main.T) string
+Set func(*main.T, int, int)
+SetSize func(*main.T, int)`),
+	two(`package main
+	import "fmt"
+	type N interface {
+		Size() int
+		SetSize(int)
+	}
+	type T struct {
+		N
+		X int
+		Y int
+	}
+	func (t T) String() string {
+		return fmt.Sprintf("(%v,%v)",t.X,t.Y)
+	}
+	func (t *T) Set(x int, y int) {
+		t.X, t.Y = x, y
+	}
+	`, `SetSize func(main.T, int)
+Size func(main.T) int
+String func(main.T) string
+Set func(*main.T, int, int)`),
+	two(`package main
+	import "fmt"
+	type N struct {
+		size int
+	}
+	func (b N) Size() int {
+		return b.size
+	}
+	func (b *N) SetSize(n int) {
+		b.size = n
+	}
+	type T struct {
+		*N
+		X int
+		Y int
+	}
+	func (t T) String() string {
+		return fmt.Sprintf("(%v,%v)",t.X,t.Y)
+	}
+	func (t *T) Set(x int, y int) {
+		t.X, t.Y = x, y
+	}
+	`, `SetSize func(main.T, int)
+Size func(main.T) int
+String func(main.T) string
+Set func(*main.T, int, int)`),
 }
 
 func TestMethod(t *testing.T) {
@@ -222,11 +297,23 @@ func TestMethod(t *testing.T) {
 		if err != nil {
 			t.Errorf("%s: ToType error %v", test.src, err)
 		}
-		if got := fmt.Sprintf("%+#v", reflect.New(rt).Elem().Interface()); got != test.str {
-			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
+		var infos []string
+		skip := make(map[string]bool)
+		for i := 0; i < rt.NumMethod(); i++ {
+			fn := rt.Method(i)
+			infos = append(infos, fmt.Sprintf("%v %v", fn.Name, fn.Type.String()))
+			skip[fn.Name] = true
 		}
-		if want, got := reflect.PtrTo(rt).NumMethod(), typ.(*types.Named).NumMethods(); got != want {
-			t.Errorf("%s: numMethods: got %v, want %v", test.src, got, want)
+		prt := reflect.PtrTo(rt)
+		for i := 0; i < prt.NumMethod(); i++ {
+			fn := prt.Method(i)
+			if skip[fn.Name] {
+				continue
+			}
+			infos = append(infos, fmt.Sprintf("%v %v", fn.Name, fn.Type.String()))
+		}
+		if got := strings.Join(infos, "\n"); got != test.str {
+			t.Errorf("%s: methods: got %v, want %v", test.src, got, test.str)
 		}
 	}
 }
