@@ -275,9 +275,13 @@ Set func(*main.T, int, int)`),
 	func (t *T) Set(x int, y int) {
 		t.X, t.Y = x, y
 	}
+	func (t T) This() T {
+		return t
+	}
 	`, `SetSize func(main.T, int)
 Size func(main.T) int
 String func(main.T) string
+This func(main.T) main.T
 Set func(*main.T, int, int)`),
 }
 
@@ -318,6 +322,11 @@ func TestMethod(t *testing.T) {
 		}
 		if got := strings.Join(infos, "\n"); got != test.str {
 			t.Errorf("%s: methods: got %v, want %v", test.src, got, test.str)
+		}
+		if m, ok := rt.MethodByName("This"); ok {
+			if m.Type.Out(0) != rt {
+				t.Errorf("%s: methods type failed", test.src)
+			}
 		}
 	}
 }
