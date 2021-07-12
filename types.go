@@ -249,8 +249,34 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 		return nil, fmt.Errorf("named type `%s` - %w", name.Name(), err)
 	}
 	typ = reflectx.NamedTypeOf(pkgPath, namedType, typ)
+	numMethods := t.NumMethods()
+	if numMethods > 0 {
+		var ms []reflectx.Method
+		var mcount, pcount int
+		for i := 0; i < numMethods; i++ {
+			fn := t.Method(i)
+			sig := fn.Type().(*types.Signature)
+			mtyp, err := ToType(sig, ctx)
+			if err != nil {
+				return nil, fmt.Errorf("named methods `%s.%s` - %w", name.Name(), fn.Name(), err)
+			}
+			pointer := isPointer(sig.Recv().Type())
+			if !pointer {
+				mcount++
+			}
+			pcount++
+			ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, nil))
+		}
+		typ = reflectx.NewMethodSet(typ, mcount, pcount)
+		reflectx.SetMethodSet(typ, ms)
+	}
 	ctx.UpdateType(typ)
 	return typ, nil
+}
+
+func isPointer(typ types.Type) bool {
+	_, ok := typ.Underlying().(*types.Pointer)
+	return ok
 }
 
 func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {

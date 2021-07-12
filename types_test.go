@@ -189,3 +189,44 @@ func TestNamed(t *testing.T) {
 		}
 	}
 }
+
+var methodTest = []testEntry{
+	two(`package main
+	import "fmt"
+	type T struct {
+		X int
+		Y int
+	}
+	func (t T) String() string {
+		return fmt.Sprintf("(%v,%v)",t.X,t.Y)
+	}
+	func (t *T) Set(x int, y int) {
+		t.X, t.Y = x, y
+	}
+	`, `main.T{X:0, Y:0}`),
+}
+
+func TestMethod(t *testing.T) {
+	var tests []testEntry
+	tests = append(tests, methodTest...)
+
+	for _, test := range tests {
+		pkg, err := makePkg(test.src)
+		if err != nil {
+			t.Errorf("%s: %s", test.src, err)
+			continue
+		}
+		ctx := xtypes.NewContext()
+		typ := pkg.Scope().Lookup("T").Type()
+		rt, err := xtypes.ToType(typ, ctx)
+		if err != nil {
+			t.Errorf("%s: ToType error %v", test.src, err)
+		}
+		if got := fmt.Sprintf("%+#v", reflect.New(rt).Elem().Interface()); got != test.str {
+			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
+		}
+		if want, got := reflect.PtrTo(rt).NumMethod(), typ.(*types.Named).NumMethods(); got != want {
+			t.Errorf("%s: numMethods: got %v, want %v", test.src, got, want)
+		}
+	}
+}
