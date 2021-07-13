@@ -268,7 +268,6 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 type Context interface {
 	FindType(pkgPath string, namedType string) (reflect.Type, bool)
 	UpdateType(typ reflect.Type, fnUpdateMethods func() error)
-	UpdateAllMethods() error
 }
 
 type context struct {
@@ -315,14 +314,8 @@ func (t *context) UpdateType(typ reflect.Type, fnUpdateMethods func() error) {
 	}
 	if fnUpdateMethods != nil {
 		t.ntype[typ] = fnUpdateMethods
-	}
-}
-
-func (t *context) UpdateAllMethods() error {
-	for _, fn := range t.ntype {
-		if err := fn(); err != nil {
-			return err
+		for _, fn := range t.ntype {
+			fn()
 		}
 	}
-	return nil
 }

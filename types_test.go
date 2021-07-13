@@ -301,10 +301,6 @@ func TestMethod(t *testing.T) {
 		if err != nil {
 			t.Errorf("%s: ToType error %v", test.src, err)
 		}
-		err = ctx.UpdateAllMethods()
-		if err != nil {
-			t.Errorf("%s: update all methods failed. %v", test.src, err)
-		}
 		var infos []string
 		skip := make(map[string]bool)
 		for i := 0; i < rt.NumMethod(); i++ {
