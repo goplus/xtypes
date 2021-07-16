@@ -326,3 +326,78 @@ func TestMethod(t *testing.T) {
 		}
 	}
 }
+
+var invokeTest = `
+package main
+
+import "fmt"
+
+type T struct {
+	X int
+	Y int
+}
+
+func (t *T) Set(x int, y int) {
+	t.X, t.Y = x, y
+}
+
+func (t T) Add(o T) T {
+	return T{t.X+o.X, t.Y+o.Y}
+}
+
+func (t T) String() string {
+	return fmt.Sprintf("(%v,%v)", t.X,t.Y)
+}
+`
+
+func TestInvoke(t *testing.T) {
+	pkg, err := makePkg(invokeTest)
+	if err != nil {
+		t.Errorf("invoke: makePkg error %s", err)
+	}
+	typ := pkg.Scope().Lookup("T").Type()
+	ctx := xtypes.NewContext(func(nt types.Type, name string) func(args []reflect.Value) []reflect.Value {
+		if !types.Identical(typ, nt) {
+			t.Fatal("error identical")
+		}
+		switch name {
+		case "Set":
+			return func(args []reflect.Value) []reflect.Value {
+				v := args[0].Elem()
+				v.Field(0).Set(args[1])
+				v.Field(1).Set(args[2])
+				return nil
+			}
+		case "String":
+			return func(args []reflect.Value) []reflect.Value {
+				v := args[0]
+				r := fmt.Sprintf("(%v,%v)", v.Field(0).Int(), v.Field(1).Int())
+				return []reflect.Value{reflect.ValueOf(r)}
+			}
+		case "Add":
+			return func(args []reflect.Value) []reflect.Value {
+				v := args[0]
+				o := args[1]
+				r := reflect.New(v.Type()).Elem()
+				r.Field(0).SetInt(v.Field(0).Int() + o.Field(0).Int())
+				r.Field(1).SetInt(v.Field(1).Int() + o.Field(1).Int())
+				return []reflect.Value{r}
+			}
+		}
+		return nil
+	})
+	rt, err := xtypes.ToType(typ, ctx)
+	if err != nil {
+		t.Errorf("invoke: ToType error %v", err)
+	}
+	v := reflect.New(rt)
+	v.MethodByName("Set").Call([]reflect.Value{reflect.ValueOf(100), reflect.ValueOf(200)})
+	if r := v.MethodByName("String").Call(nil); len(r) != 1 || fmt.Sprint(r[0].Interface()) != "(100,200)" {
+		t.Errorf("error call String: %v", r)
+	}
+	o := reflect.New(rt)
+	o.MethodByName("Set").Call([]reflect.Value{reflect.ValueOf(10), reflect.ValueOf(20)})
+	if r := v.MethodByName("Add").Call([]reflect.Value{o.Elem()}); len(r) != 1 || fmt.Sprint(r[0].Interface()) != "(110,220)" {
+		t.Errorf("error call Add: %v", r)
+	}
+}

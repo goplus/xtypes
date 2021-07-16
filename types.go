@@ -227,9 +227,11 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 					return fmt.Errorf("named methods `%s.%s` - %w", name.Name(), fn.Name(), err)
 				}
 				pointer := isPointer(sig.Recv().Type())
-				ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, func(args []reflect.Value) []reflect.Value {
-					return ctx.CallMethod(t, fn.Name(), args)
-				}))
+				var mfn func(args []reflect.Value) []reflect.Value
+				if ctx != nil {
+					mfn = ctx.LookupMethod(t, fn.Name())
+				}
+				ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, mfn))
 			}
 			return reflectx.SetMethodSet(typ, ms)
 		}
@@ -270,25 +272,28 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 type Context interface {
 	FindType(pkgPath string, namedType string) (reflect.Type, bool)
 	UpdateType(typ reflect.Type, fnUpdateMethods func() error)
-	CallMethod(typ types.Type, name string, args []reflect.Value) []reflect.Value
+	LookupMethod(typ types.Type, name string) func(args []reflect.Value) []reflect.Value
 }
 
 type context struct {
-	rtype map[reflect.Type]reflect.Type   // pre_type => type
-	ntype map[reflect.Type](func() error) // type => update_methods
-	mcall func(typ types.Type, name string, args []reflect.Value) []reflect.Value
+	rtype  map[reflect.Type]reflect.Type   // pre_type => type
+	ntype  map[reflect.Type](func() error) // type => update_methods
+	lookup func(typ types.Type, name string) func(args []reflect.Value) []reflect.Value
 }
 
-func NewContext(mcall func(typ types.Type, name string, args []reflect.Value) []reflect.Value) Context {
+func NewContext(lookup func(typ types.Type, name string) func(args []reflect.Value) []reflect.Value) Context {
 	return &context{
-		rtype: make(map[reflect.Type]reflect.Type),
-		ntype: make(map[reflect.Type](func() error)),
-		mcall: mcall,
+		rtype:  make(map[reflect.Type]reflect.Type),
+		ntype:  make(map[reflect.Type](func() error)),
+		lookup: lookup,
 	}
 }
 
-func (t *context) CallMethod(typ types.Type, name string, args []reflect.Value) []reflect.Value {
-	return t.mcall(typ, name, args)
+func (t *context) LookupMethod(typ types.Type, name string) func(args []reflect.Value) []reflect.Value {
+	if t.lookup != nil {
+		return t.lookup(typ, name)
+	}
+	return nil
 }
 
 func (t *context) FindType(pkgPath string, namedType string) (reflect.Type, bool) {
