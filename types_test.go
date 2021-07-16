@@ -179,7 +179,7 @@ func TestNamed(t *testing.T) {
 			t.Errorf("%s: %s", test.src, err)
 			continue
 		}
-		ctx := xtypes.NewContext()
+		ctx := xtypes.NewContext(nil)
 		typ := pkg.Scope().Lookup("T").Type()
 		rt, err := xtypes.ToType(typ, ctx)
 		if err != nil {
@@ -295,7 +295,7 @@ func TestMethod(t *testing.T) {
 			t.Errorf("%s: %s", test.src, err)
 			continue
 		}
-		ctx := xtypes.NewContext()
+		ctx := xtypes.NewContext(nil)
 		typ := pkg.Scope().Lookup("T").Type()
 		rt, err := xtypes.ToType(typ, ctx)
 		if err != nil {
