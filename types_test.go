@@ -356,11 +356,8 @@ func TestInvoke(t *testing.T) {
 		t.Errorf("invoke: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("T").Type()
-	ctx := xtypes.NewContext(func(nt types.Type, fn *types.Func) func(args []reflect.Value) []reflect.Value {
-		if !types.Identical(typ, nt) {
-			t.Fatal("error identical")
-		}
-		switch fn.Name() {
+	ctx := xtypes.NewContext(func(method *types.Func) func(args []reflect.Value) []reflect.Value {
+		switch method.Name() {
 		case "Set":
 			return func(args []reflect.Value) []reflect.Value {
 				v := args[0].Elem()
