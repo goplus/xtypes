@@ -229,7 +229,7 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 				pointer := isPointer(sig.Recv().Type())
 				var mfn func(args []reflect.Value) []reflect.Value
 				if ctx != nil {
-					mfn = ctx.LookupMethod(t, fn.Name())
+					mfn = ctx.LookupMethod(t, fn)
 				}
 				ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, mfn))
 			}
@@ -272,16 +272,16 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 type Context interface {
 	FindType(pkgPath string, namedType string) (reflect.Type, bool)
 	UpdateType(typ reflect.Type, fnUpdateMethods func() error)
-	LookupMethod(typ types.Type, name string) func(args []reflect.Value) []reflect.Value
+	LookupMethod(typ types.Type, fn *types.Func) func(args []reflect.Value) []reflect.Value
 }
 
 type context struct {
 	rtype  map[reflect.Type]reflect.Type   // pre_type => type
 	ntype  map[reflect.Type](func() error) // type => update_methods
-	lookup func(typ types.Type, name string) func(args []reflect.Value) []reflect.Value
+	lookup func(typ types.Type, fn *types.Func) func(args []reflect.Value) []reflect.Value
 }
 
-func NewContext(lookup func(typ types.Type, name string) func(args []reflect.Value) []reflect.Value) Context {
+func NewContext(lookup func(typ types.Type, fn *types.Func) func(args []reflect.Value) []reflect.Value) Context {
 	return &context{
 		rtype:  make(map[reflect.Type]reflect.Type),
 		ntype:  make(map[reflect.Type](func() error)),
@@ -289,9 +289,9 @@ func NewContext(lookup func(typ types.Type, name string) func(args []reflect.Val
 	}
 }
 
-func (t *context) LookupMethod(typ types.Type, name string) func(args []reflect.Value) []reflect.Value {
+func (t *context) LookupMethod(typ types.Type, fn *types.Func) func(args []reflect.Value) []reflect.Value {
 	if t.lookup != nil {
-		return t.lookup(typ, name)
+		return t.lookup(typ, fn)
 	}
 	return nil
 }
