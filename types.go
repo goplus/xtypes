@@ -239,6 +239,15 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 			return nil, err
 		}
 	}
+	// type T *T, type T []T ...
+	// Array, Chan, Map, Ptr, or Slice
+	switch typ.Kind() {
+	case reflect.Array, reflect.Chan, reflect.Map, reflect.Ptr, reflect.Slice:
+		elem := typ.Elem()
+		if elem.PkgPath() == typ.PkgPath() && elem.Name() == typ.Name() {
+			reflectx.SetElem(typ, typ)
+		}
+	}
 	ctx.UpdateType(typ, fnUpdate)
 	return typ, nil
 }

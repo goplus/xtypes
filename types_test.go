@@ -398,3 +398,35 @@ func TestInvoke(t *testing.T) {
 		t.Errorf("error call Add: %v", r)
 	}
 }
+
+func TestPtrElem(t *testing.T) {
+	pkg, err := makePkg("package main; type T *T")
+	if err != nil {
+		t.Errorf("elem: makePkg error %s", err)
+	}
+	typ := pkg.Scope().Lookup("T").Type()
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil))
+	if err != nil {
+		t.Errorf("elem: ToType error %v", err)
+	}
+	ptr := reflect.PtrTo(rt)
+	if !ptr.AssignableTo(rt) || !rt.AssignableTo(ptr) {
+		t.Errorf("elem: AssignableTo error %v", rt)
+	}
+}
+
+func TestArrayElem(t *testing.T) {
+	pkg, err := makePkg("package main; type T []T")
+	if err != nil {
+		t.Errorf("elem: makePkg error %s", err)
+	}
+	typ := pkg.Scope().Lookup("T").Type()
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil))
+	if err != nil {
+		t.Errorf("elem: ToType error %v", err)
+	}
+	ptr := rt.Elem()
+	if !ptr.AssignableTo(rt) || !rt.AssignableTo(ptr) {
+		t.Errorf("elem: AssignableTo error %v", rt)
+	}
+}
