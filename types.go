@@ -79,6 +79,8 @@ func ToType(typ types.Type, ctx Context) (reflect.Type, error) {
 	case *types.Basic:
 		if kind := t.Kind(); kind >= types.Bool && kind <= types.UnsafePointer {
 			return basicTypes[kind], nil
+		} else if kind == types.UntypedBool {
+			return basicTypes[types.Bool], nil
 		}
 		return nil, ErrUntyped
 	case *types.Pointer:
