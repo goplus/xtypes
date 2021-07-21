@@ -81,6 +81,8 @@ func ToType(typ types.Type, ctx Context) (reflect.Type, error) {
 			return basicTypes[kind], nil
 		} else if kind == types.UntypedBool {
 			return basicTypes[types.Bool], nil
+		} else if kind == types.UntypedString {
+			return basicTypes[types.String], nil
 		}
 		return nil, ErrUntyped
 	case *types.Pointer:
