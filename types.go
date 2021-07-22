@@ -165,7 +165,8 @@ func toStructType(t *types.Struct, ctx Context) (typ reflect.Type, err error) {
 			return nil, err
 		}
 	}
-	return reflectx.StructOf(flds), nil
+	st := reflectx.StructOf(flds)
+	return reflectx.StructToMethodSet(st), nil
 }
 
 func toStructField(v *types.Var, tag string, ctx Context) (fld reflect.StructField, err error) {

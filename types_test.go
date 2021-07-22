@@ -466,3 +466,61 @@ func TestInterface(t *testing.T) {
 		t.Errorf("func: out error %v", out.Kind())
 	}
 }
+
+var structTest = `
+package main
+
+import "fmt"
+
+type T struct {
+	X int
+	Y int
+}
+
+func (t *T) Set(x int, y int) {
+	t.X, t.Y = x, y
+}
+
+func (t T) Add(o T) T {
+	return T{t.X+o.X, t.Y+o.Y}
+}
+
+func (t T) String() string {
+	return fmt.Sprintf("(%v,%v)", t.X,t.Y)
+}
+
+var t1 struct{ T }
+var t2 struct{ *T }
+var t3 struct{ fmt.Stringer }
+`
+
+func TestEmbbed(t *testing.T) {
+	pkg, err := makePkg(structTest)
+	if err != nil {
+		t.Errorf("embbed: makePkg error %s", err)
+	}
+	typ := pkg.Scope().Lookup("t1").Type()
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil))
+	if err != nil {
+		t.Errorf("embbed: ToType error %v", err)
+	}
+	if n := rt.NumMethod(); n != 2 {
+		t.Errorf("embbed: num method %v", n)
+	}
+	typ = pkg.Scope().Lookup("t2").Type()
+	rt, err = xtypes.ToType(typ, xtypes.NewContext(nil))
+	if err != nil {
+		t.Errorf("embbed: ToType error %v", err)
+	}
+	if n := rt.NumMethod(); n != 3 {
+		t.Errorf("embbed: num method %v", n)
+	}
+	typ = pkg.Scope().Lookup("t3").Type()
+	rt, err = xtypes.ToType(typ, xtypes.NewContext(nil))
+	if err != nil {
+		t.Errorf("embbed: ToType error %v", err)
+	}
+	if n := rt.NumMethod(); n != 1 {
+		t.Errorf("embbed: num method %v", n)
+	}
+}
