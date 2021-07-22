@@ -430,3 +430,39 @@ func TestArrayElem(t *testing.T) {
 		t.Errorf("elem: AssignableTo error %v", rt)
 	}
 }
+
+func TestFunc(t *testing.T) {
+	pkg, err := makePkg("package main; type T func(string) T")
+	if err != nil {
+		t.Errorf("func: makePkg error %s", err)
+	}
+	typ := pkg.Scope().Lookup("T").Type()
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil))
+	if err != nil {
+		t.Errorf("func: ToType error %v", err)
+	}
+	out := rt.Out(0)
+	if out != rt {
+		t.Errorf("func: out error %v", out.Kind())
+	}
+}
+
+func TestInterface(t *testing.T) {
+	pkg, err := makePkg(`package main
+	type T interface {
+		a(s string) T
+		b(s string) string
+	}`)
+	if err != nil {
+		t.Errorf("func: makePkg error %s", err)
+	}
+	typ := pkg.Scope().Lookup("T").Type()
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil))
+	if err != nil {
+		t.Errorf("func: ToType error %v", err)
+	}
+	out := rt.Method(0).Type.Out(0)
+	if out != rt {
+		t.Errorf("func: out error %v", out.Kind())
+	}
+}

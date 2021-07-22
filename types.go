@@ -243,15 +243,6 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 			return nil, err
 		}
 	}
-	// type T *T, type T []T ...
-	// Array, Chan, Map, Ptr, or Slice
-	switch typ.Kind() {
-	case reflect.Array, reflect.Chan, reflect.Map, reflect.Ptr, reflect.Slice:
-		elem := typ.Elem()
-		if elem.PkgPath() == typ.PkgPath() && elem.Name() == typ.Name() {
-			reflectx.SetElem(typ, typ)
-		}
-	}
 	ctx.UpdateType(typ, fnUpdate)
 	return typ, nil
 }
@@ -324,19 +315,19 @@ func (t *context) FindType(pkgPath string, namedType string) (reflect.Type, bool
 }
 
 func (t *context) UpdateType(typ reflect.Type, fnUpdateMethods func() error) {
-	rmap := make(map[reflect.Type]reflect.Type)
+	rmap := make(map[string]reflect.Type)
 	for k, v := range t.rtype {
 		if k.PkgPath() == typ.PkgPath() && k.Name() == typ.Name() {
 			t.rtype[k] = typ
 			v = typ
 		}
 		if v != nil {
-			rmap[k] = v
+			rmap[k.String()] = v
 		}
 	}
 	for _, v := range t.rtype {
 		if v != nil {
-			reflectx.UpdateField(v, rmap)
+			reflectx.ReplaceType(v, rmap)
 		}
 	}
 	if fnUpdateMethods != nil {
