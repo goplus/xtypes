@@ -165,8 +165,10 @@ func toStructType(t *types.Struct, ctx Context) (typ reflect.Type, err error) {
 			return nil, err
 		}
 	}
-	st := reflectx.StructOf(flds)
-	return reflectx.StructToMethodSet(st), nil
+	typ = reflectx.StructOf(flds)
+	typ, _ = toMethodSet(t, typ, ctx)
+	//ctx.UpdateType(typ, fnUpdate)
+	return typ, nil
 }
 
 func toStructField(v *types.Var, tag string, ctx Context) (fld reflect.StructField, err error) {
@@ -188,6 +190,44 @@ func toStructField(v *types.Var, tag string, ctx Context) (fld reflect.StructFie
 	return
 }
 
+func toMethodSet(t types.Type, styp reflect.Type, ctx Context) (reflect.Type, func() error) {
+	methods := IntuitiveMethodSet(t)
+	numMethods := len(methods)
+	if numMethods == 0 {
+		return styp, nil
+	}
+	var mcount, pcount int
+	for i := 0; i < numMethods; i++ {
+		sig := methods[i].Type().(*types.Signature)
+		pointer := isPointer(sig.Recv().Type())
+		if !pointer {
+			mcount++
+		}
+		pcount++
+	}
+	typ := reflectx.NewMethodSet(styp, mcount, pcount)
+	fn := func() error {
+		var ms []reflectx.Method
+		for i := 0; i < numMethods; i++ {
+			fn := methods[i].Obj().(*types.Func)
+			sig := methods[i].Type().(*types.Signature)
+			pointer := isPointer(sig.Recv().Type())
+			mtyp, err := ToType(sig, ctx)
+			if err != nil {
+				return fmt.Errorf("named methods `%s.%s` - %w", t, fn.Name(), err)
+			}
+			var mfn func(args []reflect.Value) []reflect.Value
+			if ctx != nil {
+				mfn = ctx.LookupMethod(fn)
+			}
+			ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, mfn))
+		}
+		return reflectx.SetMethodSet(typ, ms)
+	}
+	fn()
+	return typ, fn
+}
+
 func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	name := t.Obj()
 	if name.Pkg() == nil {
@@ -203,47 +243,12 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 			return t, nil
 		}
 	}
-	typ, err := ToType(t.Underlying(), ctx)
+	utype, err := ToType(t.Underlying(), ctx)
 	if err != nil {
 		return nil, fmt.Errorf("named type `%s` - %w", name.Name(), err)
 	}
-	typ = reflectx.NamedTypeOf(pkgPath, namedType, typ)
-	numMethods := t.NumMethods()
-	var fnUpdate func() error
-	if numMethods > 0 {
-		var mcount, pcount int
-		for i := 0; i < numMethods; i++ {
-			fn := t.Method(i)
-			sig := fn.Type().(*types.Signature)
-			pointer := isPointer(sig.Recv().Type())
-			if !pointer {
-				mcount++
-			}
-			pcount++
-		}
-		typ = reflectx.NewMethodSet(typ, mcount, pcount)
-		fnUpdate = func() error {
-			var ms []reflectx.Method
-			for i := 0; i < numMethods; i++ {
-				fn := t.Method(i)
-				sig := fn.Type().(*types.Signature)
-				mtyp, err := ToType(sig, ctx)
-				if err != nil {
-					return fmt.Errorf("named methods `%s.%s` - %w", name.Name(), fn.Name(), err)
-				}
-				pointer := isPointer(sig.Recv().Type())
-				var mfn func(args []reflect.Value) []reflect.Value
-				if ctx != nil {
-					mfn = ctx.LookupMethod(fn)
-				}
-				ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, mfn))
-			}
-			return reflectx.SetMethodSet(typ, ms)
-		}
-		if err := fnUpdate(); err != nil {
-			return nil, err
-		}
-	}
+	styp := reflectx.NamedTypeOf(pkgPath, namedType, utype)
+	typ, fnUpdate := toMethodSet(t, styp, ctx)
 	ctx.UpdateType(typ, fnUpdate)
 	return typ, nil
 }
@@ -337,4 +342,32 @@ func (t *context) UpdateType(typ reflect.Type, fnUpdateMethods func() error) {
 			fn()
 		}
 	}
+}
+
+// golang.org/x/tools/go/types/typeutil.IntuitiveMethodSet
+func IntuitiveMethodSet(T types.Type) []*types.Selection {
+	isPointerToConcrete := func(T types.Type) bool {
+		ptr, ok := T.(*types.Pointer)
+		return ok && !types.IsInterface(ptr.Elem())
+	}
+
+	var result []*types.Selection
+	mset := types.NewMethodSet(T)
+	if types.IsInterface(T) || isPointerToConcrete(T) {
+		for i, n := 0, mset.Len(); i < n; i++ {
+			result = append(result, mset.At(i))
+		}
+	} else {
+		// T is some other concrete type.
+		// Report methods of T and *T, preferring those of T.
+		pmset := types.NewMethodSet(types.NewPointer(T))
+		for i, n := 0, pmset.Len(); i < n; i++ {
+			meth := pmset.At(i)
+			if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
+				meth = m
+			}
+			result = append(result, meth)
+		}
+	}
+	return result
 }

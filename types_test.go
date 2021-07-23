@@ -14,6 +14,19 @@ import (
 	"github.com/goplus/xtypes"
 )
 
+func TestType(t *testing.T) {
+	testDDD(t)
+	testTypes(t)
+	testNamed(t)
+	testMethod(t)
+	testInterface(t)
+	testInvoke(t)
+	testFunc(t)
+	testEmbbed(t)
+	testPtrElem(t)
+	testArrayElem(t)
+}
+
 const filename = "<src>"
 
 func makePkg(src string) (*types.Package, error) {
@@ -89,7 +102,7 @@ var typesTest = []testEntry{
 	two(`[4]struct{ item int; _ [40]byte }`, `[4]struct { item int; _ [40]uint8 }`),
 }
 
-func TestTypes(t *testing.T) {
+func testTypes(t *testing.T) {
 	var tests []testEntry
 	tests = append(tests, basicTypes...)
 	tests = append(tests, typesTest...)
@@ -102,7 +115,7 @@ func TestTypes(t *testing.T) {
 			continue
 		}
 		typ := pkg.Scope().Lookup("T").Type().Underlying()
-		rt, err := xtypes.ToType(typ, nil)
+		rt, err := xtypes.ToType(typ, xtypes.NewContext(nil))
 		if err != nil {
 			t.Errorf("%s: ToType error %v", test.src, err)
 		}
@@ -169,7 +182,7 @@ var namedTest = []testEntry{
 	`, `<nil>`),
 }
 
-func TestNamed(t *testing.T) {
+func testNamed(t *testing.T) {
 	var tests []testEntry
 	tests = append(tests, namedTest...)
 
@@ -192,7 +205,8 @@ func TestNamed(t *testing.T) {
 }
 
 var methodTest = []testEntry{
-	two(`package main
+	two(`//001
+	package main
 	import "fmt"
 	type T struct {
 		X int
@@ -206,7 +220,8 @@ var methodTest = []testEntry{
 	}
 	`, `String func(main.T) string
 Set func(*main.T, int, int)`),
-	two(`package main
+	two(`//002
+	package main
 	import "fmt"
 	type N struct {
 		size int
@@ -232,7 +247,8 @@ Set func(*main.T, int, int)`),
 String func(main.T) string
 Set func(*main.T, int, int)
 SetSize func(*main.T, int)`),
-	two(`package main
+	two(`//003
+	package main
 	import "fmt"
 	type N interface {
 		Size() int
@@ -253,7 +269,8 @@ SetSize func(*main.T, int)`),
 Size func(main.T) int
 String func(main.T) string
 Set func(*main.T, int, int)`),
-	two(`package main
+	two(`//004
+	package main
 	import "fmt"
 	type N struct {
 		size int
@@ -285,7 +302,7 @@ This func(main.T) main.T
 Set func(*main.T, int, int)`),
 }
 
-func TestMethod(t *testing.T) {
+func testMethod(t *testing.T) {
 	var tests []testEntry
 	tests = append(tests, methodTest...)
 
@@ -317,7 +334,7 @@ func TestMethod(t *testing.T) {
 			infos = append(infos, fmt.Sprintf("%v %v", fn.Name, fn.Type.String()))
 		}
 		if got := strings.Join(infos, "\n"); got != test.str {
-			t.Errorf("%s: methods: got %v, want %v", test.src, got, test.str)
+			t.Errorf("%s: methods\ngot\n%v\nwant\n%v", test.src, got, test.str)
 		}
 		if m, ok := rt.MethodByName("This"); ok {
 			if m.Type.Out(0) != rt {
@@ -350,7 +367,7 @@ func (t T) String() string {
 }
 `
 
-func TestInvoke(t *testing.T) {
+func testInvoke(t *testing.T) {
 	pkg, err := makePkg(invokeTest)
 	if err != nil {
 		t.Errorf("invoke: makePkg error %s", err)
@@ -399,7 +416,7 @@ func TestInvoke(t *testing.T) {
 	}
 }
 
-func TestPtrElem(t *testing.T) {
+func testPtrElem(t *testing.T) {
 	pkg, err := makePkg("package main; type T *T")
 	if err != nil {
 		t.Errorf("elem: makePkg error %s", err)
@@ -415,7 +432,7 @@ func TestPtrElem(t *testing.T) {
 	}
 }
 
-func TestArrayElem(t *testing.T) {
+func testArrayElem(t *testing.T) {
 	pkg, err := makePkg("package main; type T []T")
 	if err != nil {
 		t.Errorf("elem: makePkg error %s", err)
@@ -431,7 +448,7 @@ func TestArrayElem(t *testing.T) {
 	}
 }
 
-func TestFunc(t *testing.T) {
+func testFunc(t *testing.T) {
 	pkg, err := makePkg("package main; type T func(string) T")
 	if err != nil {
 		t.Errorf("func: makePkg error %s", err)
@@ -447,7 +464,7 @@ func TestFunc(t *testing.T) {
 	}
 }
 
-func TestInterface(t *testing.T) {
+func testInterface(t *testing.T) {
 	pkg, err := makePkg(`package main
 	type T interface {
 		a(s string) T
@@ -489,18 +506,23 @@ func (t T) String() string {
 	return fmt.Sprintf("(%v,%v)", t.X,t.Y)
 }
 
+type Stringer interface {
+	String() string
+}
+
 var t1 struct{ T }
 var t2 struct{ *T }
-var t3 struct{ fmt.Stringer }
+var t3 struct{ Stringer }
 `
 
-func TestEmbbed(t *testing.T) {
+func testEmbbed(t *testing.T) {
 	pkg, err := makePkg(structTest)
 	if err != nil {
 		t.Errorf("embbed: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("t1").Type()
-	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil))
+	ctx := xtypes.NewContext(nil)
+	rt, err := xtypes.ToType(typ, ctx)
 	if err != nil {
 		t.Errorf("embbed: ToType error %v", err)
 	}
@@ -508,7 +530,7 @@ func TestEmbbed(t *testing.T) {
 		t.Errorf("embbed: num method %v", n)
 	}
 	typ = pkg.Scope().Lookup("t2").Type()
-	rt, err = xtypes.ToType(typ, xtypes.NewContext(nil))
+	rt, err = xtypes.ToType(typ, ctx)
 	if err != nil {
 		t.Errorf("embbed: ToType error %v", err)
 	}
@@ -516,11 +538,47 @@ func TestEmbbed(t *testing.T) {
 		t.Errorf("embbed: num method %v", n)
 	}
 	typ = pkg.Scope().Lookup("t3").Type()
-	rt, err = xtypes.ToType(typ, xtypes.NewContext(nil))
+	rt, err = xtypes.ToType(typ, ctx)
 	if err != nil {
 		t.Errorf("embbed: ToType error %v", err)
 	}
 	if n := rt.NumMethod(); n != 1 {
 		t.Errorf("embbed: num method %v", n)
+	}
+}
+
+var dddTest = `
+package main
+
+type T []T
+
+func ln(args ...T) int { return len(args) }
+
+func (*T) Sum(args ...int) int { return 1 }
+
+type U struct {
+	*T
+}
+
+func (u *U) Test() {
+}
+`
+
+func testDDD(t *testing.T) {
+	pkg, err := makePkg(dddTest)
+	if err != nil {
+		t.Errorf("ddd: makePkg error %s", err)
+	}
+	typ := pkg.Scope().Lookup("U").Type()
+	ctx := xtypes.NewContext(nil)
+	rt, err := xtypes.ToType(typ, ctx)
+	if err != nil {
+		t.Errorf("ddd: ToType error %v", err)
+	}
+	if n := rt.NumMethod(); n != 1 {
+		t.Errorf("ddd: num method %v", n)
+	}
+	if n := reflect.PtrTo(rt).NumMethod(); n != 2 {
+		t.Errorf("ddd: num method %v", n)
 	}
 }
