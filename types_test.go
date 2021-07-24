@@ -167,6 +167,10 @@ var namedTest = []testEntry{
 	import "errors"
 	var T = errors.New("err")
 	`, `<nil>`),
+	two(`package main
+	import "io"
+	var T io.Writer
+	`, `<nil>`),
 }
 
 func TestNamed(t *testing.T) {
