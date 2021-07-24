@@ -247,8 +247,11 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	if err != nil {
 		return nil, fmt.Errorf("named type `%s` - %w", name.Name(), err)
 	}
-	styp := reflectx.NamedTypeOf(pkgPath, namedType, utype)
-	typ, fnUpdate := toMethodSet(t, styp, ctx)
+	typ := reflectx.NamedTypeOf(pkgPath, namedType, utype)
+	var fnUpdate func() error
+	if typ.Kind() != reflect.Interface {
+		typ, fnUpdate = toMethodSet(t, typ, ctx)
+	}
 	ctx.UpdateType(typ, fnUpdate)
 	return typ, nil
 }

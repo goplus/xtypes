@@ -14,19 +14,6 @@ import (
 	"github.com/goplus/xtypes"
 )
 
-func TestType(t *testing.T) {
-	testDDD(t)
-	testTypes(t)
-	testNamed(t)
-	testMethod(t)
-	testInterface(t)
-	testInvoke(t)
-	testFunc(t)
-	testEmbbed(t)
-	testPtrElem(t)
-	testArrayElem(t)
-}
-
 const filename = "<src>"
 
 func makePkg(src string) (*types.Package, error) {
@@ -102,7 +89,7 @@ var typesTest = []testEntry{
 	two(`[4]struct{ item int; _ [40]byte }`, `[4]struct { item int; _ [40]uint8 }`),
 }
 
-func testTypes(t *testing.T) {
+func TestTypes(t *testing.T) {
 	var tests []testEntry
 	tests = append(tests, basicTypes...)
 	tests = append(tests, typesTest...)
@@ -182,7 +169,7 @@ var namedTest = []testEntry{
 	`, `<nil>`),
 }
 
-func testNamed(t *testing.T) {
+func TestNamed(t *testing.T) {
 	var tests []testEntry
 	tests = append(tests, namedTest...)
 
@@ -302,7 +289,7 @@ This func(main.T) main.T
 Set func(*main.T, int, int)`),
 }
 
-func testMethod(t *testing.T) {
+func TestMethod(t *testing.T) {
 	var tests []testEntry
 	tests = append(tests, methodTest...)
 
@@ -367,7 +354,7 @@ func (t T) String() string {
 }
 `
 
-func testInvoke(t *testing.T) {
+func TestInvoke(t *testing.T) {
 	pkg, err := makePkg(invokeTest)
 	if err != nil {
 		t.Errorf("invoke: makePkg error %s", err)
@@ -416,7 +403,7 @@ func testInvoke(t *testing.T) {
 	}
 }
 
-func testPtrElem(t *testing.T) {
+func TestPtrElem(t *testing.T) {
 	pkg, err := makePkg("package main; type T *T")
 	if err != nil {
 		t.Errorf("elem: makePkg error %s", err)
@@ -432,7 +419,7 @@ func testPtrElem(t *testing.T) {
 	}
 }
 
-func testArrayElem(t *testing.T) {
+func TestArrayElem(t *testing.T) {
 	pkg, err := makePkg("package main; type T []T")
 	if err != nil {
 		t.Errorf("elem: makePkg error %s", err)
@@ -448,7 +435,7 @@ func testArrayElem(t *testing.T) {
 	}
 }
 
-func testFunc(t *testing.T) {
+func TestFunc(t *testing.T) {
 	pkg, err := makePkg("package main; type T func(string) T")
 	if err != nil {
 		t.Errorf("func: makePkg error %s", err)
@@ -464,7 +451,7 @@ func testFunc(t *testing.T) {
 	}
 }
 
-func testInterface(t *testing.T) {
+func TestInterface(t *testing.T) {
 	pkg, err := makePkg(`package main
 	type T interface {
 		a(s string) T
@@ -515,7 +502,7 @@ var t2 struct{ *T }
 var t3 struct{ Stringer }
 `
 
-func testEmbbed(t *testing.T) {
+func TestEmbbed(t *testing.T) {
 	pkg, err := makePkg(structTest)
 	if err != nil {
 		t.Errorf("embbed: makePkg error %s", err)
@@ -564,7 +551,7 @@ func (u *U) Test() {
 }
 `
 
-func testDDD(t *testing.T) {
+func TestDDD(t *testing.T) {
 	pkg, err := makePkg(dddTest)
 	if err != nil {
 		t.Errorf("ddd: makePkg error %s", err)
