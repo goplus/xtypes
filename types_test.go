@@ -590,6 +590,12 @@ func init() {
 	println(b)
 }
 
+func init() {
+	type T *T
+	var c T
+	println(c)
+}
+
 func main() {
 	a := &T{100,200}
 	println(a)
@@ -622,6 +628,10 @@ func TestMultiple(t *testing.T) {
 	if !ok {
 		t.Error("not found object b")
 	}
+	c, ok := lookupObject(pkg.Scope(), "c")
+	if !ok {
+		t.Error("not found object b")
+	}
 	ctx := xtypes.NewContext(nil)
 	ta, err := xtypes.ToType(a.Type(), ctx)
 	if err != nil {
@@ -631,7 +641,17 @@ func TestMultiple(t *testing.T) {
 	if err != nil {
 		t.Errorf("ToType error %v", err)
 	}
-	if ta.Elem() == tb.Elem() {
+	tc, err := xtypes.ToType(c.Type(), ctx)
+	if ta.Elem() == tb.Elem() || ta.Elem() == tc.Elem() || tb.Elem() == tc.Elem() {
 		t.Error("must diffrent type")
+	}
+	if s := fmt.Sprintf("%#v", reflect.New(ta.Elem()).Interface()); s != "&main.T{X:0, Y:0}" {
+		t.Error("bad type", s)
+	}
+	if s := fmt.Sprintf("%#v", reflect.New(tb.Elem()).Interface()); s != `&main.T{s:""}` {
+		t.Error("bad type", s)
+	}
+	if s := fmt.Sprintf("%#v", reflect.New(tc.Elem()).Elem().Interface()); s != `(main.T)(nil)` {
+		t.Error("bad type", s)
 	}
 }

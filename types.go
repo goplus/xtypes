@@ -236,10 +236,8 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 		}
 		return ToType(t.Underlying(), ctx)
 	}
-	pkgPath := name.Pkg().Path()
-	namedType := name.Name()
 	if ctx != nil {
-		if t, ok := ctx.FindType(pkgPath, namedType); ok {
+		if t, ok := ctx.FindType(name); ok {
 			return t, nil
 		}
 	}
@@ -247,12 +245,12 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 	if err != nil {
 		return nil, fmt.Errorf("named type `%s` - %w", name.Name(), err)
 	}
-	typ := reflectx.NamedTypeOf(pkgPath, namedType, utype)
+	typ := reflectx.NamedTypeOf(name.Pkg().Path(), name.Name(), utype)
 	var fnUpdate func() error
 	if typ.Kind() != reflect.Interface {
 		typ, fnUpdate = toMethodSet(t, typ, ctx)
 	}
-	ctx.UpdateType(typ, fnUpdate)
+	ctx.UpdateType(name, typ, fnUpdate)
 	return typ, nil
 }
 
@@ -283,20 +281,24 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 
 // Context interface
 type Context interface {
-	FindType(pkgPath string, namedType string) (reflect.Type, bool)
-	UpdateType(typ reflect.Type, fnUpdateMethods func() error)
+	FindType(name *types.TypeName) (reflect.Type, bool)
+	UpdateType(name *types.TypeName, typ reflect.Type, fnUpdateMethods func() error)
 	LookupMethod(method *types.Func) func(args []reflect.Value) []reflect.Value
 }
 
+type typeScope struct {
+	rtype map[reflect.Type]reflect.Type // pre_type => type
+}
+
 type context struct {
-	rtype  map[reflect.Type]reflect.Type   // pre_type => type
+	scope  map[*types.Scope]*typeScope
 	ntype  map[reflect.Type](func() error) // type => update_methods
 	lookup func(method *types.Func) func(args []reflect.Value) []reflect.Value
 }
 
 func NewContext(lookup func(method *types.Func) func(args []reflect.Value) []reflect.Value) Context {
 	return &context{
-		rtype:  make(map[reflect.Type]reflect.Type),
+		scope:  make(map[*types.Scope]*typeScope),
 		ntype:  make(map[reflect.Type](func() error)),
 		lookup: lookup,
 	}
@@ -309,21 +311,21 @@ func (t *context) LookupMethod(method *types.Func) func(args []reflect.Value) []
 	return nil
 }
 
-func (t *context) FindType(pkgPath string, namedType string) (reflect.Type, bool) {
+func (t *typeScope) FindType(name *types.TypeName) (reflect.Type, bool) {
 	for k, v := range t.rtype {
-		if k.PkgPath() == pkgPath && k.Name() == namedType {
+		if k.PkgPath() == name.Pkg().Path() && k.Name() == name.Name() {
 			if v != nil {
 				return v, true
 			}
 			return k, true
 		}
 	}
-	typ := reflectx.NamedTypeOf(pkgPath, namedType, tyEmptyInterface)
+	typ := reflectx.NamedTypeOf(name.Pkg().Path(), name.Name(), tyEmptyInterface)
 	t.rtype[typ] = nil
 	return typ, false
 }
 
-func (t *context) UpdateType(typ reflect.Type, fnUpdateMethods func() error) {
+func (t *typeScope) UpdateType(typ reflect.Type) {
 	rmap := make(map[string]reflect.Type)
 	for k, v := range t.rtype {
 		if k.PkgPath() == typ.PkgPath() && k.Name() == typ.Name() {
@@ -339,6 +341,22 @@ func (t *context) UpdateType(typ reflect.Type, fnUpdateMethods func() error) {
 			reflectx.ReplaceType(v, rmap)
 		}
 	}
+}
+
+func (t *context) findScope(parent *types.Scope) *typeScope {
+	scope, ok := t.scope[parent]
+	if !ok {
+		scope = &typeScope{make(map[reflect.Type]reflect.Type)}
+		t.scope[parent] = scope
+	}
+	return scope
+}
+func (t *context) FindType(name *types.TypeName) (reflect.Type, bool) {
+	return t.findScope(name.Parent()).FindType(name)
+}
+
+func (t *context) UpdateType(name *types.TypeName, typ reflect.Type, fnUpdateMethods func() error) {
+	t.findScope(name.Parent()).UpdateType(typ)
 	if fnUpdateMethods != nil {
 		t.ntype[typ] = fnUpdateMethods
 		for _, fn := range t.ntype {
