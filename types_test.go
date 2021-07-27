@@ -573,3 +573,65 @@ func TestDDD(t *testing.T) {
 		t.Errorf("ddd: num method %v", n)
 	}
 }
+
+var multipleTest = `
+package main
+
+type T struct {
+	X int
+	Y int
+}
+
+func init() {
+	type T struct {
+		s string
+	}
+	b := &T{"hello"}
+	println(b)
+}
+
+func main() {
+	a := &T{100,200}
+	println(a)
+}
+
+`
+
+func lookupObject(scope *types.Scope, name string) (types.Object, bool) {
+	if obj := scope.Lookup(name); obj != nil {
+		return obj, true
+	}
+	for i := 0; i < scope.NumChildren(); i++ {
+		if obj, ok := lookupObject(scope.Child(i), name); ok {
+			return obj, true
+		}
+	}
+	return nil, false
+}
+
+func TestMultiple(t *testing.T) {
+	pkg, err := makePkg(multipleTest)
+	if err != nil {
+		t.Errorf("makePkg error %s", err)
+	}
+	a, ok := lookupObject(pkg.Scope(), "a")
+	if !ok {
+		t.Error("not found object a")
+	}
+	b, ok := lookupObject(pkg.Scope(), "b")
+	if !ok {
+		t.Error("not found object b")
+	}
+	ctx := xtypes.NewContext(nil)
+	ta, err := xtypes.ToType(a.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	tb, err := xtypes.ToType(b.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if ta.Elem() == tb.Elem() {
+		t.Error("must diffrent type")
+	}
+}
