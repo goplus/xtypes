@@ -655,3 +655,34 @@ func TestMultiple(t *testing.T) {
 		t.Error("bad type", s)
 	}
 }
+
+var basicInterfaceTest = `
+package main
+
+var i interface{}
+var e error
+`
+
+func TestBasicInterface(t *testing.T) {
+	pkg, err := makePkg(basicInterfaceTest)
+	if err != nil {
+		t.Errorf("makePkg error %s", err)
+	}
+	i := pkg.Scope().Lookup("i")
+	e := pkg.Scope().Lookup("e")
+	ctx := xtypes.NewContext(nil)
+	typ, err := xtypes.ToType(i.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if typ != reflect.TypeOf((*interface{})(nil)).Elem() {
+		t.Errorf("to interface{} error %v", err)
+	}
+	typ, err = xtypes.ToType(e.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if typ != reflect.TypeOf((*error)(nil)).Elem() {
+		t.Errorf("to error interface error %v", err)
+	}
+}

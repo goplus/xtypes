@@ -261,6 +261,9 @@ func isPointer(typ types.Type) bool {
 
 func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 	n := t.NumMethods()
+	if n == 0 {
+		return tyEmptyInterface, nil
+	}
 	ms := make([]reflect.Method, n)
 	for i := 0; i < n; i++ {
 		fn := t.Method(i)
