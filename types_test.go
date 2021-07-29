@@ -725,3 +725,27 @@ func TestExtType(t *testing.T) {
 		t.Error("to ext type color.RGBA failed")
 	}
 }
+
+var jsonTest = `
+package main
+
+import "encoding/json"
+
+var err json.MarshalerError
+`
+
+func TestJson(t *testing.T) {
+	pkg, err := makePkg(jsonTest)
+	if err != nil {
+		t.Errorf("makePkg error %s", err)
+	}
+	r := pkg.Scope().Lookup("err")
+	ctx := xtypes.NewContext(nil, nil)
+	typ, err := xtypes.ToType(r.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if n := typ.NumField(); n != 3 {
+		t.Errorf("num field error %v", n)
+	}
+}

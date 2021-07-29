@@ -341,6 +341,14 @@ func (t *typeScope) FindType(name *types.TypeName) (reflect.Type, bool) {
 	return typ, false
 }
 
+func typeId(typ reflect.Type) string {
+	var id string
+	if path := typ.PkgPath(); path != "" {
+		id = path + "."
+	}
+	return id + typ.Name()
+}
+
 func (t *typeScope) UpdateType(typ reflect.Type) {
 	rmap := make(map[string]reflect.Type)
 	for k, v := range t.rtype {
@@ -349,12 +357,12 @@ func (t *typeScope) UpdateType(typ reflect.Type) {
 			v = typ
 		}
 		if v != nil {
-			rmap[k.String()] = v
+			rmap[typeId(k)] = v
 		}
 	}
 	for _, v := range t.rtype {
 		if v != nil {
-			reflectx.ReplaceType(v, rmap)
+			reflectx.ReplaceType(v.PkgPath(), v, rmap)
 		}
 	}
 }
