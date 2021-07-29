@@ -712,7 +712,7 @@ func TestExtType(t *testing.T) {
 	}
 	r := pkg.Scope().Lookup("r")
 	ctx := xtypes.NewContext(nil, func(name *types.TypeName) (reflect.Type, bool) {
-		if name.Pkg().Path() == "image/color" && name.Name() == "RGBA" {
+		if name.Type().String() == "image/color.RGBA" {
 			return reflect.TypeOf((*color.RGBA)(nil)).Elem(), true
 		}
 		return nil, false
