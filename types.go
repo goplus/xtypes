@@ -294,24 +294,37 @@ type typeScope struct {
 }
 
 type context struct {
-	scope  map[*types.Scope]*typeScope
-	ntype  map[reflect.Type](func() error) // type => update_methods
-	lookup func(method *types.Func) func(args []reflect.Value) []reflect.Value
+	scope        map[*types.Scope]*typeScope
+	ntype        map[reflect.Type](func() error) // type => update_methods
+	findMethod   func(method *types.Func) func(args []reflect.Value) []reflect.Value
+	findTypeName func(name *types.TypeName) (reflect.Type, bool)
 }
 
-func NewContext(lookup func(method *types.Func) func(args []reflect.Value) []reflect.Value) Context {
-	return &context{
-		scope:  make(map[*types.Scope]*typeScope),
-		ntype:  make(map[reflect.Type](func() error)),
-		lookup: lookup,
+func NewContext(
+	findMethod func(method *types.Func) func(args []reflect.Value) []reflect.Value,
+	findTypeName func(name *types.TypeName) (reflect.Type, bool),
+) Context {
+	ctx := &context{
+		scope:        make(map[*types.Scope]*typeScope),
+		ntype:        make(map[reflect.Type](func() error)),
+		findMethod:   findMethod,
+		findTypeName: findTypeName,
 	}
+	if ctx.findMethod == nil {
+		ctx.findMethod = func(method *types.Func) func(args []reflect.Value) []reflect.Value {
+			return nil
+		}
+	}
+	if ctx.findTypeName == nil {
+		ctx.findTypeName = func(name *types.TypeName) (reflect.Type, bool) {
+			return nil, false
+		}
+	}
+	return ctx
 }
 
 func (t *context) LookupMethod(method *types.Func) func(args []reflect.Value) []reflect.Value {
-	if t.lookup != nil {
-		return t.lookup(method)
-	}
-	return nil
+	return t.findMethod(method)
 }
 
 func (t *typeScope) FindType(name *types.TypeName) (reflect.Type, bool) {
@@ -355,6 +368,9 @@ func (t *context) findScope(parent *types.Scope) *typeScope {
 	return scope
 }
 func (t *context) FindType(name *types.TypeName) (reflect.Type, bool) {
+	if typ, ok := t.findTypeName(name); ok {
+		return typ, true
+	}
 	return t.findScope(name.Parent()).FindType(name)
 }
 
