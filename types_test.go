@@ -749,3 +749,127 @@ func TestJson(t *testing.T) {
 		t.Errorf("num field error %v", n)
 	}
 }
+
+var sliceElemTest = `
+package main
+
+type Scope struct {
+	s     string
+	child []*Scope
+}
+var s *Scope
+`
+
+func TestSliceElem(t *testing.T) {
+	pkg, err := makePkg(sliceElemTest)
+	if err != nil {
+		t.Errorf("makePkg error %s", err)
+	}
+	r := pkg.Scope().Lookup("s")
+	ctx := xtypes.NewContext(nil, nil)
+	typ, err := xtypes.ToType(r.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if elem := typ.Elem().Field(1).Type.Elem(); elem != typ {
+		t.Errorf("child ptr error %#v != %#v", elem, typ)
+	}
+}
+
+var implementsTest = `
+package main
+
+type Object interface {
+	Name() string
+	id() int
+}
+
+type Named struct {
+	name string
+}
+
+func (m Named) Name() string {
+	return m.name
+}
+
+func (m Named) id() int {
+	return 0
+}
+
+var v Object
+var n Named
+
+
+`
+
+func TestImplement(t *testing.T) {
+	pkg, err := makePkg(implementsTest)
+	if err != nil {
+		t.Errorf("makePkg error %s", err)
+	}
+	v := pkg.Scope().Lookup("v")
+	ctx := xtypes.NewContext(nil, nil)
+	ityp, err := xtypes.ToType(v.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if n := ityp.NumMethod(); n != 2 {
+		t.Errorf("num method %v", n)
+	}
+	r := pkg.Scope().Lookup("n")
+	typ, err := xtypes.ToType(r.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if n := typ.NumMethod(); n != 1 {
+		t.Errorf("num method %v", n)
+	}
+	if n := reflect.PtrTo(typ).NumMethod(); n != 1 {
+		t.Errorf("num method %v", n)
+	}
+	if !typ.Implements(ityp) {
+		t.Error("bad typ Implements")
+	}
+	if !reflect.PtrTo(typ).Implements(ityp) {
+		t.Error("bad ptr typ Implements")
+	}
+	// if !reflectx.Implements(ityp, typ) {
+	// 	t.Error("bad typ Implements")
+	// }
+	// if !reflectx.Implements(ityp, reflect.PtrTo(typ)) {
+	// 	t.Error("bad ptr typ Implements")
+	// }
+}
+
+var typesObjectTest = `
+package main
+
+import "go/types"
+
+var v types.Object
+var n *types.TypeName
+`
+
+func TestTypesObject(t *testing.T) {
+	pkg, err := makePkg(typesObjectTest)
+	if err != nil {
+		t.Errorf("makePkg error %s", err)
+	}
+	v := pkg.Scope().Lookup("v")
+	ctx := xtypes.NewContext(nil, nil)
+	ityp, err := xtypes.ToType(v.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if n := ityp.NumMethod(); n != 16 {
+		t.Errorf("num method %v", n)
+	}
+	r := pkg.Scope().Lookup("n")
+	typ, err := xtypes.ToType(r.Type(), ctx)
+	if err != nil {
+		t.Errorf("ToType error %v", err)
+	}
+	if !typ.Implements(ityp) {
+		t.Error("bad typ Implements")
+	}
+}

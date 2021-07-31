@@ -143,6 +143,10 @@ func ToType(typ types.Type, ctx Context) (reflect.Type, error) {
 	return nil, fmt.Errorf("unknown type %v", typ)
 }
 
+var (
+	sigMap = make(map[string]reflect.Type)
+)
+
 func toChanDir(d types.ChanDir) reflect.ChanDir {
 	switch d {
 	case types.SendRecv:
