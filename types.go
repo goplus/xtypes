@@ -224,9 +224,9 @@ func toMethodSet(t types.Type, styp reflect.Type, ctx Context) (reflect.Type, fu
 			if ctx != nil {
 				mfn = ctx.LookupMethod(fn)
 			}
-			ms = append(ms, reflectx.MakeMethod(fn.Name(), pointer, mtyp, mfn))
+			ms = append(ms, reflectx.MakeMethod(fn.Name(), methods[i].Obj().Pkg().Path(), pointer, mtyp, mfn))
 		}
-		return reflectx.SetMethodSet(typ, ms)
+		return reflectx.SetMethodSet(typ, ms, false)
 	}
 	fn()
 	return typ, fn
