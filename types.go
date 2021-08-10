@@ -222,7 +222,7 @@ func toMethodSet(t types.Type, styp reflect.Type, ctx Context) (reflect.Type, fu
 			}
 			var mfn func(args []reflect.Value) []reflect.Value
 			if ctx != nil {
-				mfn = ctx.LookupMethod(fn)
+				mfn = ctx.LookupMethod(mtyp, fn)
 			}
 			var pkgpath string
 			if pkg := fn.Pkg(); pkg != nil {
@@ -294,7 +294,7 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 type Context interface {
 	FindType(name *types.TypeName) (reflect.Type, bool)
 	UpdateType(name *types.TypeName, typ reflect.Type, fnUpdateMethods func() error)
-	LookupMethod(method *types.Func) func(args []reflect.Value) []reflect.Value
+	LookupMethod(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value
 }
 
 type typeScope struct {
@@ -304,12 +304,12 @@ type typeScope struct {
 type context struct {
 	scope        map[*types.Scope]*typeScope
 	ntype        map[reflect.Type](func() error) // type => update_methods
-	findMethod   func(method *types.Func) func(args []reflect.Value) []reflect.Value
+	findMethod   func(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value
 	findTypeName func(name *types.TypeName) (reflect.Type, bool)
 }
 
 func NewContext(
-	findMethod func(method *types.Func) func(args []reflect.Value) []reflect.Value,
+	findMethod func(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value,
 	findTypeName func(name *types.TypeName) (reflect.Type, bool),
 ) Context {
 	ctx := &context{
@@ -319,7 +319,7 @@ func NewContext(
 		findTypeName: findTypeName,
 	}
 	if ctx.findMethod == nil {
-		ctx.findMethod = func(method *types.Func) func(args []reflect.Value) []reflect.Value {
+		ctx.findMethod = func(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value {
 			return nil
 		}
 	}
@@ -331,8 +331,8 @@ func NewContext(
 	return ctx
 }
 
-func (t *context) LookupMethod(method *types.Func) func(args []reflect.Value) []reflect.Value {
-	return t.findMethod(method)
+func (t *context) LookupMethod(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value {
+	return t.findMethod(mtyp, method)
 }
 
 func (t *typeScope) FindType(name *types.TypeName) (reflect.Type, bool) {

@@ -365,7 +365,7 @@ func TestInvoke(t *testing.T) {
 		t.Errorf("invoke: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("T").Type()
-	ctx := xtypes.NewContext(func(method *types.Func) func(args []reflect.Value) []reflect.Value {
+	ctx := xtypes.NewContext(func(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value {
 		switch method.Name() {
 		case "Set":
 			return func(args []reflect.Value) []reflect.Value {
