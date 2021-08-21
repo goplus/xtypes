@@ -222,7 +222,15 @@ func toMethodSet(t types.Type, styp reflect.Type, ctx Context) (reflect.Type, fu
 			}
 			var mfn func(args []reflect.Value) []reflect.Value
 			if ctx != nil {
-				mfn = ctx.LookupMethod(mtyp, fn)
+				idx := methods[i].Index()
+				if len(idx) > 1 {
+					mfn = func(args []reflect.Value) []reflect.Value {
+						args[0] = args[0].FieldByIndex(idx[:len(idx)-1])
+						return args[0].Method(idx[len(idx)-1]).Call(args[1:])
+					}
+				} else {
+					mfn = ctx.LookupMethod(mtyp, fn)
+				}
 			}
 			var pkgpath string
 			if pkg := fn.Pkg(); pkg != nil {
