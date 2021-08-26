@@ -28,6 +28,7 @@ import (
 	"unsafe"
 
 	"github.com/goplus/reflectx"
+	xcall "github.com/goplus/xtypes/internal/reflect"
 )
 
 var basicTypes = [...]reflect.Type{
@@ -223,10 +224,16 @@ func toMethodSet(t types.Type, styp reflect.Type, ctx Context) (reflect.Type, fu
 			var mfn func(args []reflect.Value) []reflect.Value
 			if ctx != nil {
 				idx := methods[i].Index()
+				//				pkgPath := typ.PkgPath()
 				if len(idx) > 1 {
+					isptr := isPointer(fn.Type().Underlying().(*types.Signature).Recv().Type())
 					mfn = func(args []reflect.Value) []reflect.Value {
-						args[0] = args[0].FieldByIndex(idx[:len(idx)-1])
-						return args[0].Method(idx[len(idx)-1]).Call(args[1:])
+						this := args[0].FieldByIndex(idx[:len(idx)-1])
+						if isptr && this.Kind() != reflect.Ptr {
+							this = this.Addr()
+						}
+						m := xcall.MethodByName(this, fn.Name())
+						return xcall.Call(m, args[1:])
 					}
 				} else {
 					mfn = ctx.LookupMethod(mtyp, fn)
