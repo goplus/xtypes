@@ -861,13 +861,13 @@ func (v Value) Field(i int) Value {
 	// Inherit permission bits from v, but clear flagEmbedRO.
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
-	if !field.name.isExported() {
-		if field.embedded() {
-			fl |= flagEmbedRO
-		} else {
-			fl |= flagStickyRO
-		}
-	}
+	// if !field.name.isExported() {
+	// 	if field.embedded() {
+	// 		fl |= flagEmbedRO
+	// 	} else {
+	// 		fl |= flagStickyRO
+	// 	}
+	// }
 	// Either flagIndir is set and v.ptr points at struct,
 	// or flagIndir is not set and v.ptr is the actual struct data.
 	// In the former case, we want v.ptr + offset.
