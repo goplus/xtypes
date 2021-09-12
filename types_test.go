@@ -861,7 +861,7 @@ func TestTypesObject(t *testing.T) {
 	if err != nil {
 		t.Errorf("ToType error %v", err)
 	}
-	if n := ityp.NumMethod(); n != 16 {
+	if n := ityp.NumMethod(); n != reflect.TypeOf((*types.Object)(nil)).Elem().NumMethod() {
 		t.Errorf("num method %v", n)
 	}
 	r := pkg.Scope().Lookup("n")
