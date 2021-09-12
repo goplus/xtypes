@@ -28,7 +28,6 @@ import (
 	"unsafe"
 
 	"github.com/goplus/reflectx"
-	xcall "github.com/goplus/xtypes/internal/reflect"
 )
 
 var basicTypes = [...]reflect.Type{
@@ -232,8 +231,8 @@ func toMethodSet(t types.Type, styp reflect.Type, ctx Context) (reflect.Type, fu
 						if isptr && this.Kind() != reflect.Ptr {
 							this = this.Addr()
 						}
-						m := xcall.MethodByName(this, fn.Name())
-						return xcall.Call(m, args[1:])
+						m := methodByName(this, fn.Name())
+						return callValue(m, args[1:])
 					}
 				} else {
 					mfn = ctx.LookupMethod(mtyp, fn)
