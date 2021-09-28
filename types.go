@@ -75,6 +75,9 @@ func ToTypeList(tuple *types.Tuple, ctx Context) (list []reflect.Type, err error
 }
 
 func ToType(typ types.Type, ctx Context) (reflect.Type, error) {
+	if t, ok := ctx.FindType(typ); ok {
+		return t, nil
+	}
 	switch t := typ.(type) {
 	case *types.Basic:
 		if kind := t.Kind(); kind >= types.Bool && kind <= types.UnsafePointer {
@@ -235,7 +238,7 @@ func toMethodSet(t types.Type, styp reflect.Type, ctx Context) (reflect.Type, fu
 						return callValue(m, args[1:])
 					}
 				} else {
-					mfn = ctx.LookupMethod(mtyp, fn)
+					mfn = ctx.FindMethod(mtyp, fn)
 				}
 			}
 			var pkgpath string
@@ -259,7 +262,7 @@ func toNamedType(t *types.Named, ctx Context) (reflect.Type, error) {
 		return ToType(t.Underlying(), ctx)
 	}
 	if ctx != nil {
-		if t, ok := ctx.FindType(name); ok {
+		if t, ok := ctx.FindTypeName(name); ok {
 			return t, nil
 		}
 	}
@@ -306,9 +309,10 @@ func toInterfaceType(t *types.Interface, ctx Context) (reflect.Type, error) {
 
 // Context interface
 type Context interface {
-	FindType(name *types.TypeName) (reflect.Type, bool)
+	FindType(typ types.Type) (reflect.Type, bool)
+	FindTypeName(name *types.TypeName) (reflect.Type, bool)
+	FindMethod(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value
 	UpdateType(name *types.TypeName, typ reflect.Type, fnUpdateMethods func() error)
-	LookupMethod(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value
 }
 
 type typeScope struct {
@@ -320,17 +324,20 @@ type context struct {
 	ntype        map[reflect.Type](func() error) // type => update_methods
 	findMethod   func(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value
 	findTypeName func(name *types.TypeName) (reflect.Type, bool)
+	findType     func(typ types.Type) (reflect.Type, bool)
 }
 
 func NewContext(
 	findMethod func(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value,
 	findTypeName func(name *types.TypeName) (reflect.Type, bool),
+	findType func(typ types.Type) (reflect.Type, bool),
 ) Context {
 	ctx := &context{
 		scope:        make(map[*types.Scope]*typeScope),
 		ntype:        make(map[reflect.Type](func() error)),
 		findMethod:   findMethod,
 		findTypeName: findTypeName,
+		findType:     findType,
 	}
 	if ctx.findMethod == nil {
 		ctx.findMethod = func(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value {
@@ -342,14 +349,23 @@ func NewContext(
 			return nil, false
 		}
 	}
+	if ctx.findType == nil {
+		ctx.findType = func(typ types.Type) (reflect.Type, bool) {
+			return nil, false
+		}
+	}
 	return ctx
 }
 
-func (t *context) LookupMethod(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value {
+func (t *context) FindMethod(mtyp reflect.Type, method *types.Func) func(args []reflect.Value) []reflect.Value {
 	return t.findMethod(mtyp, method)
 }
 
-func (t *typeScope) FindType(name *types.TypeName) (reflect.Type, bool) {
+func (t *context) FindType(typ types.Type) (reflect.Type, bool) {
+	return t.findType(typ)
+}
+
+func (t *typeScope) FindTypeName(name *types.TypeName) (reflect.Type, bool) {
 	for k, v := range t.rtype {
 		if k.PkgPath() == name.Pkg().Path() && k.Name() == name.Name() {
 			if v != nil {
@@ -397,11 +413,11 @@ func (t *context) findScope(parent *types.Scope) *typeScope {
 	}
 	return scope
 }
-func (t *context) FindType(name *types.TypeName) (reflect.Type, bool) {
+func (t *context) FindTypeName(name *types.TypeName) (reflect.Type, bool) {
 	if typ, ok := t.findTypeName(name); ok {
 		return typ, true
 	}
-	return t.findScope(name.Parent()).FindType(name)
+	return t.findScope(name.Parent()).FindTypeName(name)
 }
 
 func (t *context) UpdateType(name *types.TypeName, typ reflect.Type, fnUpdateMethods func() error) {

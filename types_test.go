@@ -103,7 +103,7 @@ func TestTypes(t *testing.T) {
 			continue
 		}
 		typ := pkg.Scope().Lookup("T").Type().Underlying()
-		rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil))
+		rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil, nil))
 		if err != nil {
 			t.Errorf("%s: ToType error %v", test.src, err)
 		}
@@ -184,7 +184,7 @@ func TestNamed(t *testing.T) {
 			t.Errorf("%s: %s", test.src, err)
 			continue
 		}
-		ctx := xtypes.NewContext(nil, nil)
+		ctx := xtypes.NewContext(nil, nil, nil)
 		typ := pkg.Scope().Lookup("T").Type()
 		rt, err := xtypes.ToType(typ, ctx)
 		if err != nil {
@@ -304,7 +304,7 @@ func TestMethod(t *testing.T) {
 			t.Errorf("%s: %s", test.src, err)
 			continue
 		}
-		ctx := xtypes.NewContext(nil, nil)
+		ctx := xtypes.NewContext(nil, nil, nil)
 		typ := pkg.Scope().Lookup("T").Type()
 		rt, err := xtypes.ToType(typ, ctx)
 		if err != nil {
@@ -391,7 +391,7 @@ func TestInvoke(t *testing.T) {
 			}
 		}
 		return nil
-	}, nil)
+	}, nil, nil)
 	rt, err := xtypes.ToType(typ, ctx)
 	if err != nil {
 		t.Errorf("invoke: ToType error %v", err)
@@ -414,7 +414,7 @@ func TestPtrElem(t *testing.T) {
 		t.Errorf("elem: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("T").Type()
-	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil))
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil, nil))
 	if err != nil {
 		t.Errorf("elem: ToType error %v", err)
 	}
@@ -430,7 +430,7 @@ func TestArrayElem(t *testing.T) {
 		t.Errorf("elem: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("T").Type()
-	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil))
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil, nil))
 	if err != nil {
 		t.Errorf("elem: ToType error %v", err)
 	}
@@ -446,7 +446,7 @@ func TestFunc(t *testing.T) {
 		t.Errorf("func: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("T").Type()
-	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil))
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil, nil))
 	if err != nil {
 		t.Errorf("func: ToType error %v", err)
 	}
@@ -466,7 +466,7 @@ func TestInterface(t *testing.T) {
 		t.Errorf("func: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("T").Type()
-	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil))
+	rt, err := xtypes.ToType(typ, xtypes.NewContext(nil, nil, nil))
 	if err != nil {
 		t.Errorf("func: ToType error %v", err)
 	}
@@ -513,7 +513,7 @@ func TestEmbbed(t *testing.T) {
 		t.Errorf("embbed: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("t1").Type()
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	rt, err := xtypes.ToType(typ, ctx)
 	if err != nil {
 		t.Errorf("embbed: ToType error %v", err)
@@ -562,7 +562,7 @@ func TestDDD(t *testing.T) {
 		t.Errorf("ddd: makePkg error %s", err)
 	}
 	typ := pkg.Scope().Lookup("U").Type()
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	rt, err := xtypes.ToType(typ, ctx)
 	if err != nil {
 		t.Errorf("ddd: ToType error %v", err)
@@ -633,7 +633,7 @@ func TestMultiple(t *testing.T) {
 	if !ok {
 		t.Error("not found object b")
 	}
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	ta, err := xtypes.ToType(a.Type(), ctx)
 	if err != nil {
 		t.Errorf("ToType error %v", err)
@@ -673,7 +673,7 @@ func TestBasicInterface(t *testing.T) {
 	i := pkg.Scope().Lookup("i")
 	e := pkg.Scope().Lookup("e")
 	b := pkg.Scope().Lookup("b")
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	typ, err := xtypes.ToType(i.Type(), ctx)
 	if err != nil {
 		t.Errorf("ToType error %v", err)
@@ -716,7 +716,7 @@ func TestExtType(t *testing.T) {
 			return reflect.TypeOf((*color.RGBA)(nil)).Elem(), true
 		}
 		return nil, false
-	})
+	}, nil)
 	typ, err := xtypes.ToType(r.Type(), ctx)
 	if err != nil {
 		t.Errorf("ToType error %v", err)
@@ -740,7 +740,7 @@ func TestJson(t *testing.T) {
 		t.Errorf("makePkg error %s", err)
 	}
 	r := pkg.Scope().Lookup("err")
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	typ, err := xtypes.ToType(r.Type(), ctx)
 	if err != nil {
 		t.Errorf("ToType error %v", err)
@@ -766,7 +766,7 @@ func TestSliceElem(t *testing.T) {
 		t.Errorf("makePkg error %s", err)
 	}
 	r := pkg.Scope().Lookup("s")
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	typ, err := xtypes.ToType(r.Type(), ctx)
 	if err != nil {
 		t.Errorf("ToType error %v", err)
@@ -808,7 +808,7 @@ func TestImplement(t *testing.T) {
 		t.Errorf("makePkg error %s", err)
 	}
 	v := pkg.Scope().Lookup("v")
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	ityp, err := xtypes.ToType(v.Type(), ctx)
 	if err != nil {
 		t.Errorf("ToType error %v", err)
@@ -856,7 +856,7 @@ func TestTypesObject(t *testing.T) {
 		t.Errorf("makePkg error %s", err)
 	}
 	v := pkg.Scope().Lookup("v")
-	ctx := xtypes.NewContext(nil, nil)
+	ctx := xtypes.NewContext(nil, nil, nil)
 	ityp, err := xtypes.ToType(v.Type(), ctx)
 	if err != nil {
 		t.Errorf("ToType error %v", err)
